@@ -200,7 +200,7 @@ func (c *ClusterChecker) Check() error {
 
 	log.Debugf("cd dump: %s", spew.Sdump(cd))
 	if cd == nil {
-		log.Infow("no clusterdata available, closing connections to master")
+		log.Infow("no clusterdata available, closing connections to replica")
 		c.sendPollonConfData(pollon.ConfData{DestAddr: nil})
 		return nil
 	}
@@ -227,7 +227,7 @@ func (c *ClusterChecker) Check() error {
 
 	proxy := cd.Proxy
 	if proxy == nil {
-		log.Infow("no proxy object available, closing connections to master")
+		log.Infow("no proxy object available, closing connections to replica")
 		c.sendPollonConfData(pollon.ConfData{DestAddr: nil})
 		// ignore errors on setting proxy info
 		if err = c.SetProxyInfo(c.e, cluster.NoGeneration, proxyTimeout); err != nil {
@@ -242,9 +242,10 @@ func (c *ClusterChecker) Check() error {
 		return nil
 	}
 
-	db, ok := cd.DBs[proxy.Spec.MasterDBUID]
+	replica_keeper_id := cd.DBs[proxy.Spec.MasterDBUID].Spec.SynchronousStandbys[0]
+	db, ok := cd.DBs[replica_keeper_id]
 	if !ok {
-		log.Infow("no db object available, closing connections to master", "db", proxy.Spec.MasterDBUID)
+		log.Infow("no db object available, closing connections to replica", "db", replica_keeper_id)
 		c.sendPollonConfData(pollon.ConfData{DestAddr: nil})
 		// ignore errors on setting proxy info
 		if err = c.SetProxyInfo(c.e, proxy.Generation, proxyTimeout); err != nil {
@@ -265,12 +266,12 @@ func (c *ClusterChecker) Check() error {
 		c.sendPollonConfData(pollon.ConfData{DestAddr: nil})
 		return nil
 	}
-	log.Infow("master address", "address", addr)
+	log.Infow("replica address", "address", addr)
 	if err = c.SetProxyInfo(c.e, proxy.Generation, proxyTimeout); err != nil {
-		// if we failed to update our proxy info when a master is defined we
+		// if we failed to update our proxy info when a replica is defined we
 		// cannot ignore this error since the sentinel won't know that we exist
-		// and are sending connections to a master so, when electing a new
-		// master, it'll not wait for us to close connections to the old one.
+		// and are sending connections to a replica so, when electing a new
+		// replica, it'll not wait for us to close connections to the old one.
 		return fmt.Errorf("failed to update proxyInfo: %v", err)
 	} else {
 		// update proxyCheckinterval and proxyTimeout only if we successfully updated our proxy info
@@ -283,10 +284,10 @@ func (c *ClusterChecker) Check() error {
 	// start proxing only if we are inside enabledProxies, this ensures that the
 	// sentinel has read our proxyinfo and knows we are alive
 	if util.StringInSlice(proxy.Spec.EnabledProxies, c.uid) {
-		log.Infow("proxying to master address", "address", addr)
+		log.Infow("proxying to replica address", "address", addr)
 		c.sendPollonConfData(pollon.ConfData{DestAddr: addr})
 	} else {
-		log.Infow("not proxying to master address since we aren't in the enabled proxies list", "address", addr)
+		log.Infow("not proxying to replica address since we aren't in the enabled proxies list", "address", addr)
 		c.sendPollonConfData(pollon.ConfData{DestAddr: nil})
 	}
 
