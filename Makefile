@@ -1,7 +1,7 @@
 TAG_NAME = eu.gcr.io/itg-mimercadona/
-VERSION ?= v0.1.0
+VERSION ?= v0.17.0
 PROJECT ?= stolon-proxy-read-replica
-PGVERSION ?= 12.6
+PGVERSION ?= 13
 
 PROJDIR=$(dir $(realpath $(firstword $(MAKEFILE_LIST))))
 
