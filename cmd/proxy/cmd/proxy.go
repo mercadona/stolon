@@ -19,6 +19,8 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"os"
+	"strconv"
 	"sync"
 	"time"
 
@@ -241,8 +243,12 @@ func (c *ClusterChecker) Check() error {
 		}
 		return nil
 	}
-
-	replica_keeper_id := cd.DBs[proxy.Spec.MasterDBUID].Spec.SynchronousStandbys[0]
+	replicaToProxy, exists := os.LookupEnv("REPLICA_INDEX_TO_LISTEN")
+	if !exists {
+		replicaToProxy = "0"
+	}
+	proxyIndex, err := strconv.Atoi(replicaToProxy)
+	replica_keeper_id := cd.DBs[proxy.Spec.MasterDBUID].Spec.SynchronousStandbys[proxyIndex]
 	db, ok := cd.DBs[replica_keeper_id]
 	if !ok {
 		log.Infow("no db object available, closing connections to replica", "db", replica_keeper_id)
